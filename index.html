@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <title>Audio Interview Practice Demo</title>
@@ -9,20 +9,9 @@
       color: #f1f5f9;
       font-family: system-ui, sans-serif;
       padding: 40px;
-      max-width: 800px;
+      max-width: 700px;
       margin: auto;
     }
-
-    h1 {
-      font-size: 32px;
-      margin-bottom: 10px;
-    }
-
-    p {
-      color: #cbd5e1;
-      margin-bottom: 20px;
-    }
-
     button {
       padding: 12px 20px;
       border-radius: 8px;
@@ -32,19 +21,11 @@
       margin-top: 10px;
       font-size: 15px;
     }
-
     .primary { background: #4f46e5; color: white; }
     .danger { background: #b91c1c; color: white; }
-    .secondary { background: #1e293b; color: white; }
-
-    audio {
-      margin-top: 20px;
-      width: 100%;
-    }
-
     textarea {
       width: 100%;
-      height: 220px;
+      height: 180px;
       margin-top: 20px;
       background: #11141b;
       border: 1px solid #1f2937;
@@ -52,154 +33,117 @@
       color: white;
       padding: 12px;
       font-size: 14px;
-      resize: none;
-    }
-
-    .section-title {
-      margin-top: 30px;
-      font-size: 20px;
-      font-weight: 600;
-    }
-
-    /* Progress Bar */
-    #progressContainer {
-      width: 100%;
-      height: 12px;
-      background: #1e293b;
-      border-radius: 6px;
-      margin-top: 20px;
-      overflow: hidden;
-      display: none;
-    }
-
-    #progressBar {
-      height: 100%;
-      width: 0%;
-      background: #4f46e5;
-      transition: width 0.1s linear;
     }
   </style>
 </head>
 <body>
 
 <h1>Audio Interview Practice Demo</h1>
-<p>This demo records your answer, stores it, plays it back, and generates a summary with recommended improvements.</p>
 
-<button id="startBtn" class="primary">Start Demo</button>
-<button id="recordBtn" class="secondary" disabled>Start Recording</button>
+<button id="recordBtn" class="primary">Start Recording</button>
 <button id="stopBtn" class="danger" disabled>Stop Recording</button>
 
-<!-- Progress Bar -->
-<div id="progressContainer">
-  <div id="progressBar"></div>
-</div>
+<audio id="player" controls></audio>
 
-<audio id="audioPlayback" controls></audio>
-
-<div class="section-title">Summary</div>
-<textarea id="summaryBox" placeholder="Your summary will appear here..."></textarea>
-
-<button id="downloadBtn" class="primary" disabled>Download Summary</button>
+<textarea id="summary" placeholder="Summary will appear here..."></textarea>
 
 <script>
-  let mediaRecorder;
-  let audioChunks = [];
-  let progressInterval;
-  let progress = 0;
-  const MAX_TIME = 15; // seconds for full progress bar
+  let recorder;
+  let chunks = [];
 
-  const startBtn = document.getElementById("startBtn");
   const recordBtn = document.getElementById("recordBtn");
   const stopBtn = document.getElementById("stopBtn");
-  const audioPlayback = document.getElementById("audioPlayback");
-  const summaryBox = document.getElementById("summaryBox");
-  const downloadBtn = document.getElementById("downloadBtn");
+  const player = document.getElementById("player");
+  const summary = document.getElementById("summary");
 
-  const progressContainer = document.getElementById("progressContainer");
-  const progressBar = document.getElementById("progressBar");
+  // RANDOMIZED SUMMARY GENERATOR
+  function generateDynamicSummary() {
+    const toneOptions = [
+      "Your tone sounded steady and confident.",
+      "You maintained a calm and controlled speaking pace.",
+      "Your voice showed good clarity and presence.",
+      "Your tone suggested a relaxed and focused mindset."
+    ];
 
-  startBtn.onclick = () => {
-    startBtn.disabled = true;
-    recordBtn.disabled = false;
-    summaryBox.value = "Click 'Start Recording' to begin your answer.";
-  };
+    const emotionOptions = [
+      "Emotion signals suggested mild focus.",
+      "Your delivery showed a balanced emotional state.",
+      "You sounded calm with no major emotional spikes.",
+      "Your voice reflected steady engagement."
+    ];
+
+    const engagementOptions = [
+      "Engagement level appeared consistent throughout your answer.",
+      "You stayed engaged without noticeable pauses.",
+      "Your pacing suggested good attention and involvement.",
+      "Your delivery showed consistent engagement."
+    ];
+
+    const stressOptions = [
+      "No major stress indicators were detected.",
+      "Your pacing did not show signs of stress.",
+      "Your voice remained stable without tension.",
+      "Stress levels appeared low during your response."
+    ];
+
+    const improvementOptions = [
+      "Add a STAR example to strengthen your answer.",
+      "Include one measurable result to make your point stronger.",
+      "Try keeping your answer between 60–90 seconds.",
+      "End with a confident closing line to reinforce your strengths.",
+      "Add a brief example to make your answer more concrete.",
+      "Consider tightening your answer for clarity."
+    ];
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    return (
+      "Interview Summary:\n\n" +
+      "• " + pick(toneOptions) + "\n" +
+      "• " + pick(emotionOptions) + "\n" +
+      "• " + pick(engagementOptions) + "\n" +
+      "• " + pick(stressOptions) + "\n\n" +
+      "Recommended Improvements:\n" +
+      "• " + pick(improvementOptions) + "\n" +
+      "• " + pick(improvementOptions) + "\n"
+    );
+  }
 
   recordBtn.onclick = async () => {
+    // Unlock audio playback on browsers
+    const unlock = document.createElement("audio");
+    unlock.muted = true;
+    unlock.play().then(() => unlock.remove());
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
 
-    audioChunks = [];
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    // Give the mic a moment to initialize
+    await new Promise(r => setTimeout(r, 200));
 
-    mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(audioChunks, { type: "audio/mp3" });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      audioPlayback.src = audioUrl;
+    recorder = new MediaRecorder(stream);
+    chunks = [];
 
-      generateSummary();
-      downloadBtn.disabled = false;
-      stopProgress();
+    recorder.ondataavailable = e => chunks.push(e.data);
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: "audio/webm" });
+      const url = URL.createObjectURL(blob);
+      player.src = url;
+
+      summary.value = generateDynamicSummary();
     };
 
-    mediaRecorder.start();
+    recorder.start();
     recordBtn.disabled = true;
     stopBtn.disabled = false;
-    summaryBox.value = "Recording... speak your interview answer.";
-
-    startProgress();
   };
 
   stopBtn.onclick = () => {
-    mediaRecorder.stop();
+    recorder.stop();
     recordBtn.disabled = false;
     stopBtn.disabled = true;
-    summaryBox.value = "Processing your answer...";
-    stopProgress();
-  };
-
-  function startProgress() {
-    progress = 0;
-    progressBar.style.width = "0%";
-    progressContainer.style.display = "block";
-
-    progressInterval = setInterval(() => {
-      progress += 0.1;
-      const percent = (progress / MAX_TIME) * 100;
-      progressBar.style.width = percent + "%";
-
-      if (progress >= MAX_TIME) {
-        stopBtn.click();
-      }
-    }, 100);
-  }
-
-  function stopProgress() {
-    clearInterval(progressInterval);
-    progressContainer.style.display = "none";
-  }
-
-  function generateSummary() {
-    summaryBox.value =
-      "Interview Answer Summary:\n\n" +
-      "- You spoke clearly and maintained a steady pace.\n" +
-      "- Your answer stayed on topic and addressed the question.\n" +
-      "- You demonstrated relevant experience.\n\n" +
-      "Recommended Improvements:\n" +
-      "- Add a specific example using the STAR method.\n" +
-      "- Include a measurable result (e.g., 'improved efficiency by 20%').\n" +
-      "- Keep your answer between 60–90 seconds.\n" +
-      "- End with a confident closing statement.\n";
-  }
-
-  downloadBtn.onclick = () => {
-    const text = summaryBox.value;
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "interview-summary.txt";
-    a.click();
   };
 </script>
 
