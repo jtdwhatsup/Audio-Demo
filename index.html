@@ -112,23 +112,27 @@
   }
 
   recordBtn.onclick = async () => {
-    // Unlock audio playback on browsers
+    // Unlock audio playback
     const unlock = document.createElement("audio");
     unlock.muted = true;
     unlock.play().then(() => unlock.remove());
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    // Give the mic a moment to initialize
-    await new Promise(r => setTimeout(r, 200));
+    // Pick the best supported audio format
+    const mime = MediaRecorder.isTypeSupported("audio/webm")
+      ? "audio/webm"
+      : MediaRecorder.isTypeSupported("audio/mp3")
+      ? "audio/mp3"
+      : "audio/wav";
 
-    recorder = new MediaRecorder(stream);
+    recorder = new MediaRecorder(stream, { mimeType: mime });
     chunks = [];
 
     recorder.ondataavailable = e => chunks.push(e.data);
 
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "audio/webm" });
+      const blob = new Blob(chunks, { type: mime });
       const url = URL.createObjectURL(blob);
       player.src = url;
 
