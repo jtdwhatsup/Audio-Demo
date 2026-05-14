@@ -23,9 +23,10 @@
     }
     .primary { background: #4f46e5; color: white; }
     .danger { background: #b91c1c; color: white; }
+    .upload { background: #0ea5e9; color: white; }
     textarea {
       width: 100%;
-      height: 180px;
+      height: 200px;
       margin-top: 20px;
       background: #11141b;
       border: 1px solid #1f2937;
@@ -42,6 +43,8 @@
 
 <button id="recordBtn" class="primary">Start Recording</button>
 <button id="stopBtn" class="danger" disabled>Stop Recording</button>
+<button id="uploadBtn" class="upload">Upload Audio</button>
+<input type="file" id="fileInput" accept="audio/*" style="display:none">
 
 <audio id="player" controls></audio>
 
@@ -53,11 +56,13 @@
 
   const recordBtn = document.getElementById("recordBtn");
   const stopBtn = document.getElementById("stopBtn");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const fileInput = document.getElementById("fileInput");
   const player = document.getElementById("player");
   const summary = document.getElementById("summary");
 
   // RANDOMIZED SUMMARY GENERATOR
-  function generateDynamicSummary() {
+  function generateDynamicSummary(audioURL) {
     const toneOptions = [
       "Your tone sounded steady and confident.",
       "You maintained a calm and controlled speaking pace.",
@@ -101,6 +106,7 @@
 
     return (
       "Interview Summary:\n\n" +
+      "Audio File: " + audioURL + "\n\n" +
       "• " + pick(toneOptions) + "\n" +
       "• " + pick(emotionOptions) + "\n" +
       "• " + pick(engagementOptions) + "\n" +
@@ -111,15 +117,14 @@
     );
   }
 
+  // RECORDING
   recordBtn.onclick = async () => {
-    // Unlock audio playback
     const unlock = document.createElement("audio");
     unlock.muted = true;
     unlock.play().then(() => unlock.remove());
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    // Pick the best supported audio format
     const mime = MediaRecorder.isTypeSupported("audio/webm")
       ? "audio/webm"
       : MediaRecorder.isTypeSupported("audio/mp3")
@@ -136,7 +141,7 @@
       const url = URL.createObjectURL(blob);
       player.src = url;
 
-      summary.value = generateDynamicSummary();
+      summary.value = generateDynamicSummary(url);
     };
 
     recorder.start();
@@ -148,6 +153,19 @@
     recorder.stop();
     recordBtn.disabled = false;
     stopBtn.disabled = true;
+  };
+
+  // UPLOAD AUDIO
+  uploadBtn.onclick = () => fileInput.click();
+
+  fileInput.onchange = () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    player.src = url;
+
+    summary.value = generateDynamicSummary(url);
   };
 </script>
 
